@@ -4,19 +4,13 @@ import axios from 'axios';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [tokens, setTokens] = useState(null);
-  const [event, setEvent] = useState({
-    summary: '',
-    start: { dateTime: '' },
-    end: { dateTime: '' },
-  });
+  const [inputString, setInputString] = useState('');
 
-  // Function to handle user login and redirect to Google's OAuth screen
   const handleLogin = async () => {
     const response = await axios.get('http://localhost:5000/auth/google');
     window.location.href = response.data.url;
   };
 
-  // Function to handle callback and exchange code for tokens
   const handleCallback = async () => {
     const code = new URLSearchParams(window.location.search).get('code');
     if (code) {
@@ -31,11 +25,10 @@ function App() {
     }
   };
 
-  // Function to handle event creation
   const handleEventSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/create-event', { tokens, event });
+      await axios.post('http://localhost:5000/create-event', { tokens, inputString });
       alert('Event created successfully!');
     } catch (error) {
       console.error('Error creating event', error);
@@ -43,7 +36,6 @@ function App() {
     }
   };
 
-  // Automatically call handleCallback when the component mounts
   useEffect(() => {
     handleCallback();
   }, []);
@@ -54,32 +46,11 @@ function App() {
         <button onClick={handleLogin}>Login with Google</button>
       ) : (
         <form onSubmit={handleEventSubmit}>
-          <input
-            type="text"
-            placeholder="Title"
-            value={event.summary}
-            onChange={(e) => setEvent({ ...event, summary: e.target.value })}
-          />
-          <input
-            type="datetime-local"
-            placeholder="Start Time"
-            onChange={(e) =>
-              setEvent({
-                ...event,
-                start: { dateTime: new Date(e.target.value).toISOString() },
-              })
-            }
-          />
-          <input
-            type="datetime-local"
-            placeholder="End Time"
-            onChange={(e) =>
-              setEvent({
-                ...event,
-                end: { dateTime: new Date(e.target.value).toISOString() },
-              })
-            }
-          />
+          <textarea
+            placeholder="Enter the event details (e.g., Meeting with John on 25th Dec 2024 from 10 AM to 11 AM)"
+            value={inputString}
+            onChange={(e) => setInputString(e.target.value)}
+          ></textarea>
           <button type="submit">Create Event</button>
         </form>
       )}

@@ -3,6 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { google } = require('googleapis');
 const dotenv = require('dotenv');
+const axios = require('axios');
 
 dotenv.config();
 const app = express();
@@ -16,6 +17,33 @@ const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_SECRET,
     'http://localhost:3000'
 );
+
+// Function to extract event details from a string
+async function extractDetails(inputString) {
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.AI_API_KEY}`,
+    };
+
+    const data = {
+        question: inputString,
+        model: "aicon-v4-nano-160824",
+        randomness: 0.5,
+        stream_data: false,
+        training_data: "Extract event details such as title, summary, start date time, and end date time .Start and end times must either both be date or both be dateTime format. return in a format of only JSON with the keys title,summary,startDateTime,endDateTime ",
+        response_type: "JSON",
+    };
+
+    try {
+        const response = await axios.post("https://api.worqhat.com/api/ai/content/v4", data, { headers });
+        console.log(JSON.stringify(response.data)); //This will show you the response from the API call.
+        const eventDetails = JSON.parse(response.data.content); //Parse the JSON string in the content field.
+        return eventDetails; // Return the parsed event details.
+    } catch (error) {
+        console.error('Error extracting details:', error);
+        throw new Error('Failed to extract details');
+    }
+}
 
 app.get('/auth/google', (req, res) => {
     const scopes = [
@@ -43,23 +71,42 @@ app.post('/auth/google/callback', async (req, res) => {
 });
 
 app.post('/create-event', async (req, res) => {
-    const { tokens, event } = req.body;
+    const { tokens, inputString } = req.body;
     oauth2Client.setCredentials(tokens);
-    console.log(tokens, event)
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
     try {
+        const eventDetails = await extractDetails(inputString);
+
+        // Use Intl.DateTimeFormat to add timezone information
+        const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'IST' }; //Specify your desired timezone here
+        const startDateTime = new Date(eventDetails.startDateTime);
+        const endDateTime = new Date(eventDetails.endDateTime);
+        const formattedStart = startDateTime.toISOString();
+        const formattedEnd = endDateTime.toISOString();
+
+
+        const event = {
+            summary: eventDetails.title,
+            description: eventDetails.summary,
+            start: {
+                dateTime: formattedStart,
+            },
+            end: {
+                dateTime: formattedEnd,
+            },
+        };
+        console.log(JSON.stringify(event));
         const response = await calendar.events.insert({
             calendarId: 'primary',
             resource: event,
         });
         res.send(response.data);
     } catch (error) {
-        console.error(error);
-        res.status(500).send('Error creating event');
+        console.error('Error creating event:', error);
+        res.status(500).send('Error creating event: ' + error.message);
     }
 });
-
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
