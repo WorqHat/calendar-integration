@@ -4,6 +4,7 @@ import axios from 'axios';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [tokens, setTokens] = useState(null);
+  const [events, setEvents] = useState([]);
   const [inputString, setInputString] = useState('');
 
   const handleLogin = async () => {
@@ -35,17 +36,17 @@ function App() {
       alert('Failed to create event. Please try again.');
     }
   };
-  const showEvent = async (e) => {
-    e.preventDefault();
+
+  const fetchEvents = async () => {
     try {
-      await axios.post('http://localhost:5000/events', { tokens });
-      console.log("Entered events fetching")
-      alert('All the events from current month !');
+      const response = await axios.post('http://localhost:5000/events', { tokens });
+      setEvents(response.data);
     } catch (error) {
-      console.error('Error creating event', error);
-      alert('Failed to call events. Please try again.');
+      console.error('Error fetching events', error);
+      alert('Failed to fetch events. Please try again.');
     }
   };
+
   useEffect(() => {
     handleCallback();
   }, []);
@@ -55,7 +56,7 @@ function App() {
       {!isAuthenticated ? (
         <button onClick={handleLogin}>Login with Google</button>
       ) : (
-        <>
+        <div>
           <form onSubmit={handleEventSubmit}>
             <textarea
               placeholder="Enter the event details (e.g., Meeting with John on 25th Dec 2024 from 10 AM to 11 AM)"
@@ -64,10 +65,28 @@ function App() {
             ></textarea>
             <button type="submit">Create Event</button>
           </form>
-          <form onSubmit={showEvent}>
-            <button type="submit">fetch Event</button>
-          </form>
-        </>
+          <button onClick={fetchEvents}>Fetch Events</button>
+          {events.length > 0 && (
+            <table border="1">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Start Time</th>
+                  <th>End Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((event) => (
+                  <tr key={event.id}>
+                    <td>{event.summary}</td>
+                    <td>{new Date(event.start.dateTime).toLocaleString()}</td>
+                    <td>{new Date(event.end.dateTime).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       )}
     </div>
   );
