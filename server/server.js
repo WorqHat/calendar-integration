@@ -48,8 +48,10 @@ async function extractDetails(inputString) {
 app.get('/auth/google', (req, res) => {
     const scopes = [
         'https://www.googleapis.com/auth/calendar.events',
+        'https://www.googleapis.com/auth/calendar.events.readonly',
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/calendar'
     ];
     const url = oauth2Client.generateAuthUrl({
         access_type: 'offline',
@@ -105,6 +107,31 @@ app.post('/create-event', async (req, res) => {
     } catch (error) {
         console.error('Error creating event:', error);
         res.status(500).send('Error creating event: ' + error.message);
+    }
+});
+app.post('/events', async (req, res) => {
+    const { tokens } = req.body;
+    console.log("entered backend")
+    oauth2Client.setCredentials(tokens);
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    try {
+        const response = await calendar.events.list({
+            calendarId: 'primary',
+            timeMin: firstDayOfMonth,
+            timeMax: lastDayOfMonth,
+            singleEvents: true,
+            orderBy: 'startTime',
+        });
+        console.log(JSON.stringify(response.data.items));
+        res.send(response.data.items);
+    } catch (error) {
+        console.error('Error fetching events:', error);
+        res.status(500).send('Failed to fetch events');
     }
 });
 app.listen(PORT, () => {

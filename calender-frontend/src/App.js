@@ -35,7 +35,17 @@ function App() {
       alert('Failed to create event. Please try again.');
     }
   };
-
+  const showEvent = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post('http://localhost:5000/events', { tokens });
+      console.log("Entered events fetching")
+      alert('All the events from current month !');
+    } catch (error) {
+      console.error('Error creating event', error);
+      alert('Failed to call events. Please try again.');
+    }
+  };
   useEffect(() => {
     handleCallback();
   }, []);
@@ -45,14 +55,19 @@ function App() {
       {!isAuthenticated ? (
         <button onClick={handleLogin}>Login with Google</button>
       ) : (
-        <form onSubmit={handleEventSubmit}>
-          <textarea
-            placeholder="Enter the event details (e.g., Meeting with John on 25th Dec 2024 from 10 AM to 11 AM)"
-            value={inputString}
-            onChange={(e) => setInputString(e.target.value)}
-          ></textarea>
-          <button type="submit">Create Event</button>
-        </form>
+        <>
+          <form onSubmit={handleEventSubmit}>
+            <textarea
+              placeholder="Enter the event details (e.g., Meeting with John on 25th Dec 2024 from 10 AM to 11 AM)"
+              value={inputString}
+              onChange={(e) => setInputString(e.target.value)}
+            ></textarea>
+            <button type="submit">Create Event</button>
+          </form>
+          <form onSubmit={showEvent}>
+            <button type="submit">fetch Event</button>
+          </form>
+        </>
       )}
     </div>
   );
