@@ -59,7 +59,17 @@ app.get('/auth/google', (req, res) => {
     });
     res.send({ url });
 });
-
+app.post('/auth/refresh-token', async (req, res) => {
+    const { refresh_token } = req.body;
+    try {
+        oauth2Client.setCredentials({ refresh_token });
+        const { credentials } = await oauth2Client.refreshAccessToken();
+        res.send({ tokens: credentials });
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        res.status(401).send('Failed to refresh token');
+    }
+});
 app.post('/auth/google/callback', async (req, res) => {
     const { code } = req.body;
     try {

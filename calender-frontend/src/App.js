@@ -7,8 +7,10 @@ function App() {
   const [events, setEvents] = useState([]);
   const [inputString, setInputString] = useState('');
 
+  const backendUrl = 'http://localhost:5000'; // Base URL for backend API
+
   const handleLogin = async () => {
-    const response = await axios.get('http://localhost:5000/auth/google');
+    const response = await axios.get(`${backendUrl}/auth/google`);
     window.location.href = response.data.url;
   };
 
@@ -16,9 +18,10 @@ function App() {
     const code = new URLSearchParams(window.location.search).get('code');
     if (code) {
       try {
-        const response = await axios.post('http://localhost:5000/auth/google/callback', { code });
+        const response = await axios.post(`${backendUrl}/auth/google/callback`, { code });
         setTokens(response.data.tokens);
         setIsAuthenticated(true);
+        localStorage.setItem('refresh_token', response.data.tokens.refresh_token); // Store refresh token securely
       } catch (error) {
         console.error('Error during token exchange', error);
         alert('Authentication failed. Please try again.');
@@ -26,10 +29,36 @@ function App() {
     }
   };
 
+  const refreshAccessToken = async () => {
+    try {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        console.error('No refresh token available');
+        alert('Session expired. Please log in again.');
+        return;
+      }
+      const response = await axios.post(`${backendUrl}/auth/refresh-token`, { refresh_token: refreshToken });
+      setTokens(response.data.tokens);
+      return response.data.tokens.access_token;
+    } catch (error) {
+      console.error('Error refreshing access token', error);
+      alert('Failed to refresh session. Please log in again.');
+      setIsAuthenticated(false);
+      localStorage.removeItem('refresh_token');
+    }
+  };
+
   const handleEventSubmit = async (e) => {
     e.preventDefault();
+    const accessToken = tokens?.access_token || (await refreshAccessToken());
     try {
-      await axios.post('http://localhost:5000/create-event', { tokens, inputString });
+      await axios.post(
+        `${backendUrl}/create-event`,
+        { inputString },
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
       alert('Event created successfully!');
     } catch (error) {
       console.error('Error creating event', error);
@@ -38,8 +67,15 @@ function App() {
   };
 
   const fetchEvents = async () => {
+    const accessToken = tokens?.access_token || (await refreshAccessToken());
     try {
-      const response = await axios.post('http://localhost:5000/events', { tokens });
+      const response = await axios.post(
+        `${backendUrl}/events`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
       setEvents(response.data);
     } catch (error) {
       console.error('Error fetching events', error);
